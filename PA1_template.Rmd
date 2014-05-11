@@ -1,20 +1,88 @@
-# Reproducible Research: Peer Assessment 1
+Reproducible Research Assignment 1
+==================================
 
+# Loading and Preprocessing the Data
+The data for this assignment can be downloaded from the course web site: [Activity monitoring data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip). It contains from a personal activity monitoring device which collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
 
-## Loading and preprocessing the data
+Once downloaded, the data is unzipped into `activity.csv` file. In the following R code, I assume this file resides in the current working directory.
 
+```{r}
+activity <- read.csv('activity.csv')
+str(activity)
+activity$time <- strptime(as.character(activity$date), "%Y-%m-%d")
+summary(data)
+```
 
+# Mean Total Number of Steps Taken per Day
 
-## What is mean total number of steps taken per day?
+We make a histogram for the total number of steps taken per day. Here, I assume ggplot2 is installed.
 
+```{r}
+x1 <- aggregate(steps ~ date, data=activity, FUN=sum)
+summary(x1)
+library(ggplot2)
+qplot(x1$steps, xlab='Total Nmber of Steps Taken per Day')
+```
 
+As shown in the summary above, the mean of this daily total number is `r mean(x1$steps)` and the median is `r median(x1$steps)`.
 
-## What is the average daily activity pattern?
+# Average Daily Activity Pattern
 
+We plot the number of steps taken per 5-minute interval, averaged across all days.
 
+```{r}
+x2 <- aggregate(steps ~ interval, data=activity, FUN=mean)
+ggplot(data=x2, aes(x=interval, y=steps, group=1)) + geom_line() +
+  ggtitle("Average Daily Activity")
+```
 
-## Imputing missing values
+The interval contains the maximum number of steps can be obtained as follows:
+```{r}
+x2$interval[which(x2$steps == max(x2$steps))]
+```
 
+# Imputing Missing Values
 
+This data contains missing values. The number of observations (rows) containing missing value is:
+```{r}
+sum(with(activity, is.na(steps) | is.na(date) | is.na(interval)))
+```
+Indeed, only `steps` has NA values:
+```{r}
+sum(with(activity, is.na(steps)))
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+Now we impute missing steps using the mean for the same interval across all days. Then get the total number of steps per day on this new data.
+```{r}
+activity2 <- data.frame(steps=activity$steps, date=activity$date, interval=activity$interval, time=activity$time)
+condition <- is.na(activity2$steps)
+activity2$steps[condition] = x2$steps[condition]
+x3 <- aggregate(steps ~ date, data=activity2, FUN=sum)
+summary(x3)
+```
+
+We now plot the total number of steps per day using this new data.
+```{r}
+qplot(x3$steps, xlab='Total Nmber of Steps Taken per Day', main='Missing Steps Replaced with Mean Value across Days')
+```
+
+In addition, as shown in the summary above, the mean of this daily total number is `r mean(x3$steps)` and the median is `r median(x3$steps)`. These values hardly changed due to the fact that we used the mean value to replace the missing values.
+
+# Difference between Weekdays and Weekends
+
+We add a new column to indicate whether a given date is a weekday or weekend:
+```{r}
+activity$dateType <- as.factor(ifelse(weekdays(activity$time, TRUE) %in% c('Sat', 'Sun'), 'weekend', 'weekday'))
+```
+
+Now we plot average number of steps on weekends vs. weekdays. I assume the lattice package is already installed.
+```{r}
+x4 <- aggregate(steps ~ interval + dateType, data=activity, FUN=mean)
+library(lattice)
+xyplot(steps~interval|dateType, x4, type='l', xlab='Interval', ylab='Number of Steps', layout=c(1,2))
+```
+
+<!-- Call the following from R to produce the HTML
+knit2html('PA1_template.rmd')
+-->
+
